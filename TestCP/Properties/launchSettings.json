@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "TestCP": {
+      "commandName": "Project"
+    }
+  }
+}
