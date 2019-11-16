@@ -115,10 +115,31 @@ namespace TestCP
             // changes 
             IIntervalSequenceVar cc = roster.IntervalSequenceVar(disciplineNR_d);
 
-            IIntVar[] chang_d = new IIntVar[D];
+            IIntVar[][] change_dD = new IIntVar[D][];
             for (int d = 0; d < D; d++)
             {
-                chang_d[d] = roster.IntVar(0,1);
+                change_dD[d] = new IIntVar[D];
+                for (int dd = 0; dd < D; dd++)
+                {
+                    change_dD[d][dd] = roster.IntVar(0,1);
+                    if (d == dd)
+                    {
+                        change_dD[d][dd] = roster.IntVar(0, 0);
+                    }
+                }
+            }
+            IIntVar[][] y_dD = new IIntVar[D][];
+            for (int d = 0; d < D; d++)
+            {
+                y_dD[d] = new IIntVar[D];
+                for (int dd= 0; dd < D; dd++)
+                {
+                    y_dD[d][dd] = roster.IntVar(0,1);
+                    if (d == dd)
+                    {
+                        y_dD[d][dd] = roster.IntVar(0, 0);
+                    }
+                }
             }
             for (int d = 0; d < D; d++)
             {
@@ -132,14 +153,42 @@ namespace TestCP
                             {
                                 if (d != dd && h != hh && true)
                                 {
-                                    roster.IfThen(roster.And(roster.And(roster.PresenceOf(Hospital_dh[d][h]), roster.PresenceOf(Hospital_dh[dd][hh])), roster.Previous(cc,discipline_d[d],discipline_d[dd])),roster.AddEq(chang_d[d],1));
+                                    IIntExpr yyy = roster.IntExpr();
+                                    yyy = roster.Sum(yyy,roster.Prod(T,y_dD[d][dd]));
+                                    yyy = roster.Sum(yyy, roster.Prod(1, roster.EndOf(Hospital_dh[dd][hh])));
+                                    yyy = roster.Sum(yyy, roster.Prod(-1, roster.StartOf(Hospital_dh[d][h])));
+                                    roster.Add( roster.IfThen(roster.And(roster.PresenceOf(Hospital_dh[d][h]), roster.PresenceOf(Hospital_dh[dd][hh])), roster.AddGe(yyy, 0)));
                                 }
                             }
                         }
                     }
                 }
             }
-            
+            for (int d = 0; d < D; d++)
+            {
+                for (int dd = 0; dd < D; dd++)
+                {
+                    if (d == dd)
+                    {
+                        continue;
+                    }
+                    IIntExpr change = roster.IntExpr();
+                    change = roster.Sum(change, change_dD[dd][d]);
+                    change = roster.Sum(change, roster.Prod(-1, y_dD[dd][d]));
+                    for (int ddd = 0; ddd < D; ddd++)
+                    {
+                        if (ddd == d)
+                        {
+                            continue;
+                        }
+                        change = roster.Sum(change, change_dD[dd][ddd]);
+                    }
+                    roster.Add(roster.IfThen(roster.And(roster.PresenceOf(discipline_d[d]), roster.PresenceOf(discipline_d[dd])), roster.AddEq(change, 0)));
+                    
+
+                }
+                
+            }
 
             // all group assignment
             IIntExpr allPossibleCourses = roster.IntExpr();
@@ -174,7 +223,11 @@ namespace TestCP
             for (int d = 0; d < D; d++)
             {
                 objExp = roster.Sum(objExp, roster.Prod(prf_D[d], roster.PresenceOf(discipline_d[d])));
-                objExp = roster.Sum(objExp, chang_d[d]);
+                for (int dd = 0; dd < D; dd++)
+                {
+                    objExp = roster.Sum(objExp, roster.Prod(-1, change_dD[dd][d]));
+                }
+                
             }
 
             roster.AddMaximize(objExp);
@@ -212,10 +265,22 @@ namespace TestCP
 
                 for (int d = 0; d < D; d++)
                 {
-                    if (roster.GetValue(chang_d[d]) > 0.5)
+                    for (int dd = 0; dd < D; dd++)
                     {
-                        Console.WriteLine("We have change for discipline {0}", d);
+                        if (d == dd)
+                        {
+                            continue;
+                        }
+                        if (roster.GetValue(y_dD[dd][d]) > 0.5)
+                        {
+                            Console.WriteLine("change from {0} => {1}", d, dd);
+                        }
+                        if (roster.GetValue(change_dD[dd][d]) > 0.5)
+                        {
+                            Console.WriteLine("We have change for discipline {0} from discipline {1}", d,dd);
+                        }
                     }
+                    
                 }
             }
             
